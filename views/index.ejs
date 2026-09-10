@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Node.js RDS 게시판</title>
+</head>
+<body>
+  <h1>📋 게시글 목록 (AWS RDS MySQL)</h1>
+  <a href="/write">✏️ 새 글 작성</a>
+  <hr>
+  <ul>
+    <% if (posts.length === 0) { %>
+      <li>등록된 게시글이 없습니다.</li>
+    <% } %>
+    <% posts.forEach(post => { %>
+      <li>
+        <a href="/post/<%= post.id %>"><%= post.title %></a>
+        (<%= new Date(post.created_at).toLocaleString() %>)
+      </li>
+    <% }) %>
+  </ul>
+</body>
+</html>

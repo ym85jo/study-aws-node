@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= post.title %></title>
+</head>
+<body>
+  <h1><%= post.title %></h1>
+  <p><small>작성일: <%= new Date(post.created_at).toLocaleString() %></small></p>
+  <hr>
+  <p style="white-space: pre-wrap;"><%= post.content %></p>
+  <hr>
+  <a href="/">목록으로</a> | 
+  <a href="/edit/<%= post.id %>">수정</a> | 
+  <form action="/delete/<%= post.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+    <button type="submit">삭제</button>
+  </form>
+</body>
+</html>
