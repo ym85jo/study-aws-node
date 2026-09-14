@@ -1,0 +1,39 @@
+{
+  "family": "study-app-node-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::905905585641:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "study-app-node-container",
+      "image": "905905585641.dkr.ecr.ap-northeast-2.amazonaws.com/study-app-node:latest",
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3000" },
+        { "name": "DB_HOST", "value": "database-yeongmin.c1kesew8onxs.ap-northeast-2.rds.amazonaws.com" },
+        { "name": "DB_PORT", "value": "3306" },
+        { "name": "DB_USER", "value": "admin" },
+        { "name": "DB_PASSWORD", "value": "dkakwhsRh!1" },
+        { "name": "DB_NAME", "value": "db_yeongmin" }
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/study-app-node",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

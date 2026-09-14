@@ -1,4 +1,4 @@
-name: Deploy Node.js Express App to AWS EC2
+name: Deploy Node.js Express App to AWS ECS Fargate
 
 on:
   push:
@@ -28,6 +28,7 @@ jobs:
 
     # 4. Docker 이미지 빌드 및 ECR 푸시
     - name: Build, Tag, and Push Image to Amazon ECR
+      id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: study-app-node
@@ -36,55 +37,24 @@ jobs:
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        # 새로 생성된 이미지 주소를 output으로 전달
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    # 5. EC2에 SSH 접속하여 배포 (상세 디버깅 옵션 적용)
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
+    # 5. task-definition.json 파일에 새로 푸시된 이미지 URI 렌더링
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        debug: true              # SSH 연결 및 실행 상세 로그 출력 활성화
-        script_stop: true        # 스크립트 내 명령 오류 발생 시 즉시 중단 및 에러 출력
-        script: |
-          set -e
-          set -x                 # 실행되는 모든 Bash 명령어를 트레이스(추적) 로그로 출력
+        task-definition: task-definition.json
+        container-name: study-app-node-container
+        image: ${{ steps.build-image.outputs.image }}
 
-          echo "=== 1. Docker 네트워크 확인 ==="
-          docker network create app-network || true
-
-          echo "=== 2. .env 환경변수 파일 생성 ==="
-          cat << 'EOF' > .env
-          NODE_ENV=production
-          PORT=3000
-          DB_HOST=database-yeongmin.c1kesew8onxs.ap-northeast-2.rds.amazonaws.com
-          DB_PORT=3306
-          DB_USER=admin
-          DB_PASSWORD=dkakwhsRh!1
-          DB_NAME=db_yeongmin
-          EOF
-
-          echo "=== 3. ECR 로그인 및 최신 이미지 수신 ==="
-          aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 905905585641.dkr.ecr.ap-northeast-2.amazonaws.com
-          docker pull 905905585641.dkr.ecr.ap-northeast-2.amazonaws.com/study-app-node:latest
-
-          echo "=== 4. 기존 컨테이너 중지 및 삭제 ==="
-          docker stop express_app || true
-          docker rm express_app || true
-
-          echo "=== 5. 새 컨테이너 실행 ==="
-          docker run -d \
-            --name express_app \
-            --network app-network \
-            --env-file .env \
-            -p 3000:3000 \
-            --restart always \
-            905905585641.dkr.ecr.ap-northeast-2.amazonaws.com/study-app-node:latest
-
-          echo "=== 6. 생성된 .env 임시 파일 삭제 ==="
-          rm -f .env
-
-          echo "=== 7. 컨테이너 구동 상태 확인 ==="
-          sleep 3
-          docker ps | grep express_app
+    # 6. ECS Fargate 서비스로 자동 배포 (롤링 업데이트)
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: study-node-service
+        cluster: study-node-cluster
+        wait-for-service-stability: true
